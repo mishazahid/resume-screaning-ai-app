@@ -1,0 +1,61 @@
+Senior Data Scientist
+Location: San Francisco, CA (Hybrid) | Full-Time
+Company: Nexus Analytics
+
+About the Role
+--------------
+Nexus Analytics is a fast-growing SaaS company helping Fortune 500 clients turn raw data
+into competitive advantage. We are looking for a Senior Data Scientist to join our Core
+Intelligence team and take ownership of our next-generation recommendation and forecasting
+systems. You will work closely with engineering, product, and executive stakeholders to
+design, build, and ship machine learning models that directly drive product outcomes.
+
+Responsibilities
+----------------
+- Design and implement end-to-end machine learning pipelines, from data ingestion and
+  feature engineering through to model training, evaluation, and production deployment.
+- Collaborate with software engineers to integrate ML models into our platform via
+  clean, well-documented APIs (REST API / FastAPI).
+- Work with the analytics team to define KPIs, run A/B testing experiments, and
+  translate model outputs into actionable business insights presented to stakeholders.
+- Maintain and improve existing predictive models by monitoring performance, detecting
+  data drift, and conducting scheduled retraining cycles.
+- Mentor junior data scientists and contribute to a culture of technical excellence
+  through code reviews, documentation, and knowledge-sharing sessions.
+- Partner with the data engineering team to build robust, scalable data pipelines using
+  pandas, SQL, and Spark.
+
+Required Qualifications
+-----------------------
+- Bachelor's degree in Computer Science, Statistics, Mathematics, or a related field.
+- 4+ years of experience in a data science or applied machine learning role.
+- Strong programming skills in Python; experience writing production-quality code.
+- Solid understanding of supervised and unsupervised machine learning algorithms;
+  hands-on experience with scikit-learn.
+- Proficiency in data manipulation and analysis with pandas, numpy, and SQL.
+- Strong statistics background: hypothesis testing, probability distributions,
+  regression analysis, and time series forecasting.
+- Experience using version control (Git / GitHub) and working in an agile / scrum
+  environment.
+
+Preferred Qualifications
+------------------------
+- Master's degree or PhD in a quantitative discipline.
+- Experience with deep learning frameworks such as PyTorch or TensorFlow.
+- Familiarity with NLP techniques and large language models (LLMs / transformers).
+- Experience processing large datasets with Apache Spark or Hadoop.
+- Cloud platform experience: AWS (S3, SageMaker, EC2) or GCP (BigQuery, Vertex AI).
+- Exposure to MLOps practices: model versioning, monitoring, CI/CD pipelines for ML,
+  and containerisation with Docker / Kubernetes.
+- Experience with data visualisation tools such as Tableau, Power BI, or Plotly.
+
+What We Offer
+-------------
+- Competitive salary and equity package
+- Flexible hybrid work arrangement
+- $5,000 annual learning & development budget
+- Comprehensive health, dental, and vision insurance
+- 401(k) with company match
+
+Nexus Analytics is an equal-opportunity employer. We celebrate diversity and are
+committed to building an inclusive environment for all employees.
