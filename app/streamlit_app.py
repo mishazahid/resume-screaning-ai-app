@@ -22,6 +22,9 @@ import os
 # ---------------------------------------------------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Absolute path to the project root — used for loading sample data files
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 import io
 import pandas as pd
 import plotly.graph_objects as go
@@ -29,7 +32,7 @@ import streamlit as st
 
 from src.parser import extract_text, normalize_jd
 from src.skill_extractor import extract_skills, match_skills
-from src.matcher import compute_hybrid_score, get_model
+from src.matcher import compute_hybrid_score, get_model, generate_explanation
 
 # ---------------------------------------------------------------------------
 # Page configuration — must be the very first Streamlit call
@@ -261,6 +264,44 @@ with col_upload:
         "Tip: Upload at least 3–5 resumes for a meaningful comparison.",
         icon="💡",
     )
+    st.markdown("**Or try with sample data:**")
+    load_sample = st.button("Load sample resumes + JD", use_container_width=True)
+    # Show persistent success banner after sample data has been loaded
+    if st.session_state.get("sample_loaded") and not load_sample:
+        st.success("Sample data loaded! Click Screen Resumes to see results.")
+
+# ---------------------------------------------------------------------------
+# Handle "Load sample resumes + JD" button click
+# ---------------------------------------------------------------------------
+if load_sample:
+    # Read sample JD and pre-fill the text_area via its session_state key
+    sample_jd_path = os.path.join(PROJECT_ROOT, "data", "sample_jd.txt")
+    try:
+        with open(sample_jd_path, "r", encoding="utf-8") as _f:
+            st.session_state["jd_input"] = _f.read()
+    except Exception as _e:
+        st.error(f"Could not load sample JD: {_e}")
+
+    # Read each sample resume txt and store as dicts
+    sample_dir = os.path.join(PROJECT_ROOT, "data", "sample_resumes")
+    _sample_fnames = [
+        "candidate_alice.txt",
+        "candidate_bob.txt",
+        "candidate_carol.txt",
+    ]
+    _loaded_samples: list[dict] = []
+    for _fname in _sample_fnames:
+        _fpath = os.path.join(sample_dir, _fname)
+        try:
+            with open(_fpath, "r", encoding="utf-8") as _f:
+                _loaded_samples.append({"filename": _fname, "content": _f.read()})
+        except Exception as _e:
+            st.warning(f"Could not load sample file '{_fname}': {_e}")
+
+    st.session_state["sample_files"] = _loaded_samples
+    st.session_state["sample_loaded"] = True
+    # Force a rerun so the text_area picks up the new session_state value
+    st.rerun()
 
 # ---------------------------------------------------------------------------
 # SECTION 3: Action button
@@ -279,14 +320,17 @@ if clicked:
     if not jd_text.strip():
         st.warning("Please paste a job description first.")
         clicked = False
-    elif not uploaded_files:
-        st.warning("Please upload at least one resume.")
+    elif not uploaded_files and not st.session_state.get("sample_files"):
+        st.warning("Please upload at least one resume (or use 'Load sample resumes + JD').")
         clicked = False
 
 # ---------------------------------------------------------------------------
 # SECTION 4: Results
 # ---------------------------------------------------------------------------
 if clicked:
+    # Clear the sample-loaded banner once the user starts a real screening run
+    st.session_state["sample_loaded"] = False
+
     with st.spinner("Analysing resumes… this may take a moment"):
 
         # Pre-process the JD once
@@ -295,9 +339,22 @@ if clicked:
 
         all_results: list[dict] = []
 
-        for uploaded_file in uploaded_files:
-            # --- Parse the PDF ---
-            resume_data = extract_text(uploaded_file)
+        # Uploaded PDFs take priority; fall back to session_state sample files
+        if uploaded_files:
+            _file_items = list(uploaded_files)
+            _using_samples = False
+        else:
+            # Convert sample dicts to BytesIO objects with a .name attribute
+            _file_items = []
+            for _s in st.session_state.get("sample_files", []):
+                _buf = io.BytesIO(_s["content"].encode("utf-8"))
+                _buf.name = _s["filename"]
+                _file_items.append(_buf)
+            _using_samples = True
+
+        for file_item in _file_items:
+            # --- Parse the file (PDF or txt) ---
+            resume_data = extract_text(file_item)
 
             if resume_data["error"]:
                 # Store a sentinel result so we can display an error card
@@ -323,7 +380,10 @@ if clicked:
                             "education_score": 0.0,
                             "weights": {},
                             "recommendation": "Weak fit",
+                            "detected_resume_years": None,
+                            "detected_jd_years": None,
                         },
+                        "explanation": "",
                         "parse_error": resume_data["error"],
                     }
                 )
@@ -336,6 +396,9 @@ if clicked:
             # --- Compute hybrid score ---
             scores = compute_hybrid_score(jd_data, resume_data, skill_match)
 
+            # --- Generate plain-language explanation ---
+            explanation = generate_explanation(scores, skill_match)
+
             all_results.append(
                 {
                     "filename": resume_data["filename"],
@@ -343,6 +406,7 @@ if clicked:
                     "resume_skills": resume_skills,
                     "skill_match": skill_match,
                     "scores": scores,
+                    "explanation": explanation,
                     "parse_error": None,
                 }
             )
@@ -421,6 +485,23 @@ if "screening_results" in st.session_state and st.session_state["screening_resul
                 else:
                     st.error(f"**{rec}**")
 
+                # AI Insight card — bulleted breakdown for the recruiter
+                explanation = result.get("explanation", "")
+                if explanation:
+                    st.markdown(
+                        f"<div style='"
+                        f"border-left: 3px solid #4a90d9; "
+                        f"background: rgba(74,144,217,0.08); "
+                        f"padding: 8px 14px 8px 10px; "
+                        f"border-radius: 0 6px 6px 0; "
+                        f"margin-top: 10px;'>"
+                        f"<span style='font-size:12px; font-weight:600; "
+                        f"letter-spacing:.4px; opacity:.7;'>AI INSIGHT</span>"
+                        f"{explanation}"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+
                 # Sub-score bar chart
                 fig = _build_score_chart(scores)
                 st.plotly_chart(fig, use_container_width=True, key=f"chart_{rank}")
@@ -474,9 +555,33 @@ if "screening_results" in st.session_state and st.session_state["screening_resul
 
                 st.divider()
 
-                # Experience
-                exp_label = _experience_label(resume_data.get("raw_text", ""))
-                st.write(f"**Experience detected:** {exp_label}")
+                # Experience — show accurate duration including sub-year
+                detected_years = scores.get("detected_resume_years")
+                detected_months = scores.get("detected_resume_months", 0)
+                if detected_years is None:
+                    st.write("**Experience detected:** Not detected")
+                    st.caption(
+                        "Tip: Years may be written as '2019–present' "
+                        "or '5+ years experience'"
+                    )
+                elif detected_years == 0 and detected_months > 0:
+                    # Sub-year: show exact months, don't inflate to 1 year
+                    st.write(
+                        f"**Experience detected:** {detected_months} months "
+                        f"(< 1 year)"
+                    )
+                else:
+                    # Full years — optionally show remaining months too
+                    leftover = detected_months % 12 if detected_months else 0
+                    if leftover:
+                        st.write(
+                            f"**Experience detected:** {detected_years} yr "
+                            f"{leftover} mo"
+                        )
+                    else:
+                        st.write(
+                            f"**Experience detected:** {detected_years} years"
+                        )
 
                 # Education
                 edu_label = _education_label(resume_data.get("raw_text", ""))

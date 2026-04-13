@@ -27,6 +27,7 @@ compute_hybrid_score(jd_data, resume_data,
 """
 
 import re
+import datetime
 import numpy as np
 from typing import Optional
 
@@ -159,34 +160,175 @@ def _extract_years(text: str) -> Optional[int]:
     Search *text* for any mention of years of experience and return the
     maximum number found, or None if no match is found.
 
-    Patterns matched (case-insensitive):
-      - "5 years"
-      - "5+ years"
-      - "5 yrs"
-      - "5+ yrs"
+    Handles many real-world resume formats including:
+      - "5 years of experience", "5+ years of professional experience"
+      - "over 5 years", "more than 5 years", "5 + years"
+      - "5 years in the industry / field / data"
+      - "since 2018"  →  current_year - 2018
+      - "2019 - present"  →  current_year - 2019
 
     Parameters
     ----------
     text : str
-        Lowercased free-form text.
+        Free-form text (will be lowercased internally).
 
     Returns
     -------
     int or None
-        Maximum years mentioned, or None.
+        Maximum years value found (filtered to > 0), or None.
     """
-    patterns = [
-        r"(\d+)\+?\s*years?",
-        r"(\d+)\+?\s*yrs?",
-    ]
+    current_year = datetime.datetime.now().year
+    text = text.lower()
     years_found: list[int] = []
-    for pat in patterns:
+
+    # Patterns where group(1) is directly the integer years value
+    direct_patterns = [
+        r'(\d+)\+?\s*years?\s*of\s*(?:professional\s*)?(?:experience|exp)',
+        r'(\d+)\+?\s*yrs?\s*of\s*(?:professional\s*)?(?:experience|exp)',
+        r'experience\s*of\s*(\d+)\+?\s*years?',
+        r'(\d+)\+?\s*years?\s*in\s*(?:the\s*)?(?:industry|field|domain|software|data)',
+        r'over\s*(\d+)\s*years?',
+        r'more\s*than\s*(\d+)\s*years?',
+        r'(\d+)\s*\+\s*years?',
+    ]
+    for pat in direct_patterns:
         for match in re.finditer(pat, text, re.IGNORECASE):
             try:
-                years_found.append(int(match.group(1)))
-            except ValueError:
+                val = int(match.group(1))
+                if val > 0:
+                    years_found.append(val)
+            except (ValueError, IndexError):
                 pass
+
+    # "since YEAR" → compute elapsed years
+    for match in re.finditer(r'since\s*(19|20)(\d{2})', text, re.IGNORECASE):
+        try:
+            year = int(match.group(1) + match.group(2))
+            computed = current_year - year
+            if computed > 0:
+                years_found.append(computed)
+        except (ValueError, IndexError):
+            pass
+
+    # "YEAR - present/current/now/today/ongoing" → compute elapsed years
+    for match in re.finditer(
+        r'(19|20)(\d{2})\s*[-–]\s*(?:present|current|now|today|ongoing)',
+        text,
+        re.IGNORECASE,
+    ):
+        try:
+            year = int(match.group(1) + match.group(2))
+            computed = current_year - year
+            if computed > 0:
+                years_found.append(computed)
+        except (ValueError, IndexError):
+            pass
+
+    # "Mon YYYY - Mon YYYY" or "Mon YYYY to Mon YYYY" → sum all durations
+    month_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    }
+    current_month = datetime.datetime.now().month
+
+    month_year_re = (
+        r'((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?'
+        r'\s*\d{4})'
+        r'\s*(?:[-–—]|to)\s*'
+        r'((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?'
+        r'\s*\d{4}|present|current|now|today|ongoing)'
+    )
+    total_months = 0
+    for match in re.finditer(month_year_re, text, re.IGNORECASE):
+        try:
+            start_str = match.group(1).strip()
+            end_str = match.group(2).strip().lower()
+
+            s_tokens = re.split(r'\s+', start_str)
+            s_mon = month_map.get(s_tokens[0][:3].lower(), 1)
+            s_yr = int(s_tokens[-1])
+
+            if end_str in ('present', 'current', 'now', 'today', 'ongoing'):
+                e_mon, e_yr = current_month, current_year
+            else:
+                e_tokens = re.split(r'\s+', end_str)
+                e_mon = month_map.get(e_tokens[0][:3].lower(), 1)
+                e_yr = int(e_tokens[-1])
+
+            months = (e_yr - s_yr) * 12 + (e_mon - s_mon)
+            if 0 < months < 600:
+                total_months += months
+        except (ValueError, IndexError):
+            pass
+
+    if total_months > 0:
+        # Do NOT floor to 1 — return 0 for sub-year so scoring reflects reality
+        years_found.append(int(total_months / 12))
+
+    # "YYYY - YYYY" year-only ranges (fallback when no month info is given)
+    year_range_re = r'\b((?:19|20)\d{2})\s*[-–—]\s*((?:19|20)\d{2})\b'
+    year_total_months = 0
+    for match in re.finditer(year_range_re, text, re.IGNORECASE):
+        try:
+            s_yr = int(match.group(1))
+            e_yr = int(match.group(2))
+            months = (e_yr - s_yr) * 12
+            if 0 < months < 600:
+                year_total_months += months
+        except ValueError:
+            pass
+
+    if year_total_months > 0 and total_months == 0:
+        years_found.append(int(year_total_months / 12))
+
+    # Filter out negatives; keep 0 (valid: sub-year experience was found)
+    years_found = [y for y in years_found if y >= 0]
     return max(years_found) if years_found else None
+
+
+def _extract_total_experience_months(text: str) -> int:
+    """
+    Return the total months of experience found in *text* by summing all
+    detected date ranges.  Used only for UI display (e.g. "4 months").
+
+    Returns 0 if nothing is detected.
+    """
+    text = text.lower()
+    current_year = datetime.datetime.now().year
+    current_month = datetime.datetime.now().month
+
+    month_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    }
+
+    month_year_re = (
+        r'((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?'
+        r'\s*\d{4})'
+        r'\s*(?:[-–—]|to)\s*'
+        r'((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?'
+        r'\s*\d{4}|present|current|now|today|ongoing)'
+    )
+    total = 0
+    for match in re.finditer(month_year_re, text, re.IGNORECASE):
+        try:
+            start_str = match.group(1).strip()
+            end_str = match.group(2).strip().lower()
+            s_tokens = re.split(r'\s+', start_str)
+            s_mon = month_map.get(s_tokens[0][:3].lower(), 1)
+            s_yr = int(s_tokens[-1])
+            if end_str in ('present', 'current', 'now', 'today', 'ongoing'):
+                e_mon, e_yr = current_month, current_year
+            else:
+                e_tokens = re.split(r'\s+', end_str)
+                e_mon = month_map.get(e_tokens[0][:3].lower(), 1)
+                e_yr = int(e_tokens[-1])
+            months = (e_yr - s_yr) * 12 + (e_mon - s_mon)
+            if 0 < months < 600:
+                total += months
+        except (ValueError, IndexError):
+            pass
+    return total
 
 
 def _extract_required_years(jd_text: str) -> Optional[int]:
@@ -195,32 +337,38 @@ def _extract_required_years(jd_text: str) -> Optional[int]:
     return the number of years required, or None if not found.
 
     Patterns matched (case-insensitive):
-      - "4+ years of experience"
-      - "minimum 4 years"
+      - "4+ years of experience / relevant experience"
+      - "minimum of 4 years"
       - "at least 4 years"
-      - Generic year mentions (fallback)
+      - "3 to 5 years of experience"
+      - "4+ years"  (general suffix match)
 
     Parameters
     ----------
     jd_text : str
-        Lowercased job-description text.
+        Job-description text (any case; lowercased internally).
 
     Returns
     -------
     int or None
-        Required years, or None.
+        Maximum required years found (filtered to > 0), or None.
     """
-    specific_patterns = [
-        r"(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)",
-        r"minimum\s*(\d+)\s*years?",
-        r"at\s*least\s*(\d+)\s*years?",
+    jd_text = jd_text.lower()
+    patterns = [
+        r'(\d+)\+?\s*years?\s*of\s*(?:relevant\s*)?(?:experience|exp)',
+        r'minimum\s*(?:of\s*)?(\d+)\s*years?',
+        r'at\s*least\s*(\d+)\s*years?',
+        r'(\d+)\s*to\s*\d+\s*years?\s*(?:of\s*)?(?:experience|exp)',
+        r'(\d+)\+\s*years?',
     ]
     years_found: list[int] = []
-    for pat in specific_patterns:
+    for pat in patterns:
         for match in re.finditer(pat, jd_text, re.IGNORECASE):
             try:
-                years_found.append(int(match.group(1)))
-            except ValueError:
+                val = int(match.group(1))
+                if val > 0:
+                    years_found.append(val)
+            except (ValueError, IndexError):
                 pass
     return max(years_found) if years_found else None
 
@@ -405,12 +553,22 @@ def compute_hybrid_score(
     jd_text = jd_data.get("cleaned", "")
     resume_text = resume_data.get("cleaned_text", "")
 
+    # Raw text preserves date separators like "Apr 2019 - Dec 2020".
+    # clean_text() strips standalone dashes, which breaks date-range detection,
+    # so experience extraction must run on raw text.  Fall back to cleaned if absent.
+    resume_raw = resume_data.get("raw_text", "") or resume_text
+
     # Compute individual sub-scores
     semantic = compute_semantic_score(jd_text, resume_text)
     tfidf = compute_tfidf_score(jd_text, resume_text)
     skill = float(skill_match.get("skill_score", 0.0))
-    experience = compute_experience_score(resume_text, jd_text)
+    experience = compute_experience_score(resume_raw, jd_text)   # raw text for dates
     education = compute_education_score(resume_text, jd_text)
+
+    # Detected years / months for UI display — raw text preserves date separators
+    detected_resume_years = _extract_years(resume_raw.lower())
+    detected_resume_months = _extract_total_experience_months(resume_raw.lower())
+    detected_jd_years = _extract_required_years(jd_text.lower())
 
     # Weighted combination
     final = (
@@ -441,7 +599,133 @@ def compute_hybrid_score(
         "education_score": education,
         "weights": dict(WEIGHTS),
         "recommendation": recommendation,
+        "detected_resume_years": detected_resume_years,
+        "detected_resume_months": detected_resume_months,
+        "detected_jd_years": detected_jd_years,
     }
+
+
+# ---------------------------------------------------------------------------
+# Plain-language explanation generator
+# ---------------------------------------------------------------------------
+
+def generate_explanation(scores: dict, skill_match: dict) -> str:
+    """
+    Generate a specific, actionable plain-English explanation for a recruiter.
+
+    Builds up to 4 targeted bullets covering: overall verdict, skill gap with
+    named missing skills, experience vs requirement, and education fit.
+    Each bullet is only included when it adds real information.
+
+    Parameters
+    ----------
+    scores : dict
+        The dict returned by ``compute_hybrid_score()``.
+    skill_match : dict
+        The dict returned by ``match_skills()``.
+
+    Returns
+    -------
+    str
+        HTML string with 2-4 concise bullet points ready for st.markdown.
+    """
+    semantic  = scores["semantic_score"]
+    skill     = scores["skill_score"]
+    exp       = scores["experience_score"]
+    edu       = scores["education_score"]
+    final     = scores["final_score"]
+
+    matched_list  = skill_match.get("matched", [])
+    missing_list  = skill_match.get("missing", [])
+    matched       = len(matched_list)
+    total_jd      = matched + len(missing_list)
+
+    resume_years  = scores.get("detected_resume_years")
+    resume_months = scores.get("detected_resume_months", 0)
+    jd_years      = scores.get("detected_jd_years")
+
+    bullets: list[str] = []
+
+    # ── Bullet 1: Overall verdict with semantic context ──────────────────
+    if final >= 0.75:
+        verdict = "Strong overall match"
+    elif final >= 0.55:
+        verdict = "Good overall match"
+    elif final >= 0.35:
+        verdict = "Partial match"
+    else:
+        verdict = "Weak match"
+
+    if semantic >= 0.65:
+        context = "resume language closely mirrors the job description"
+    elif semantic >= 0.45:
+        context = "moderate semantic overlap with the job description"
+    else:
+        context = "resume language differs significantly from the job description"
+
+    bullets.append(f"<b>{verdict}</b> — {context} ({semantic:.0%} similarity).")
+
+    # ── Bullet 2: Skill gap — always show named missing skills ───────────
+    if total_jd == 0:
+        bullets.append("No required skills were detected in the job description.")
+    elif skill >= 0.75:
+        bullets.append(
+            f"<b>Strong skill coverage</b> — {matched} of {total_jd} required "
+            f"skills matched ({skill:.0%})."
+        )
+    else:
+        # Name up to 5 missing skills explicitly so recruiter knows exactly what's absent
+        top_missing = missing_list[:5]
+        more = len(missing_list) - len(top_missing)
+        missing_str = ", ".join(f"<i>{s}</i>" for s in top_missing)
+        if more > 0:
+            missing_str += f" (+{more} more)"
+        bullets.append(
+            f"<b>Skill gap</b> — {matched}/{total_jd} required skills matched. "
+            f"Missing: {missing_str}."
+        )
+
+    # ── Bullet 3: Experience — be specific about years detected ─────────
+    if jd_years is None:
+        # JD has no explicit requirement — skip experience bullet
+        pass
+    elif resume_years is None and resume_months == 0:
+        bullets.append(
+            "<b>Experience</b> — could not detect years from resume; "
+            "verify manually."
+        )
+    elif resume_years == 0 and resume_months > 0:
+        bullets.append(
+            f"<b>Experience</b> — only {resume_months} months detected; "
+            f"role requires {jd_years}+ years."
+        )
+    elif resume_years is not None and resume_years >= jd_years:
+        bullets.append(
+            f"<b>Experience</b> — {resume_years} yrs detected meets the "
+            f"{jd_years}+ yr requirement. ✓"
+        )
+    elif resume_years is not None:
+        gap = jd_years - resume_years
+        bullets.append(
+            f"<b>Experience</b> — {resume_years} yrs detected vs "
+            f"{jd_years}+ yrs required ({gap} yr gap)."
+        )
+
+    # ── Bullet 4: Education — only when it meaningfully affects the score ─
+    if edu < 0.7:
+        bullets.append(
+            "<b>Education</b> — degree level appears below the role's "
+            "stated requirement."
+        )
+    elif edu >= 1.0:
+        bullets.append("<b>Education</b> — meets or exceeds the degree requirement. ✓")
+
+    # Render as a compact HTML list
+    items = "".join(f"<li style='margin:3px 0;'>{b}</li>" for b in bullets)
+    return (
+        f"<ul style='margin:6px 0 0 0; padding-left:18px; "
+        f"font-size:13px; line-height:1.7;'>{items}</ul>"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,37 @@
+Bob Martinez
+bob.martinez@email.com | linkedin.com/in/bobmartinez | Austin, TX
+
+Summary
+-------
+Detail-oriented Data Analyst with 1+ years of professional experience supporting
+business decisions through data. Comfortable working with SQL databases and
+building dashboards in Power BI to present findings clearly. Eager to grow
+analytical skill set and contribute to a data-driven team.
+
+Skills
+------
+Data & Reporting: SQL, Excel, Power BI, data visualization, Microsoft Office
+Programming: Python (basic scripting, pandas introductory)
+Databases: MySQL, SQLite
+Soft Skills: communication, problem solving, teamwork, attention to detail, agile
+
+Experience
+----------
+Data Analyst — Horizon Financial Services, Austin, TX  (2023 - present)
+• Wrote SQL queries to extract customer transaction data from MySQL for monthly
+  finance reports reviewed by senior management.
+• Built and maintained 12 Power BI dashboards tracking revenue, churn, and
+  operational metrics across four business units.
+• Created automated Excel workbooks with pivot tables and basic macros to
+  consolidate weekly sales data from six regional offices.
+• Collaborated with the operations team to identify a billing discrepancy
+  saving the company $140 K through structured data analysis.
+• Used Python (pandas) for a one-off data-cleaning project, converting
+  inconsistent CSV exports into a standardised format.
+
+Education
+---------
+Bachelor of Science in Business Analytics
+Texas State University — 2023
+Relevant coursework: Database Management, Business Intelligence, Statistics for
+Business, Data Visualisation, Excel Modelling

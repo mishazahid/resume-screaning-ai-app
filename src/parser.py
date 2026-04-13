@@ -28,11 +28,34 @@ import fitz  # PyMuPDF
 # any of the known heading variants (case-insensitive).
 # ---------------------------------------------------------------------------
 SECTION_PATTERNS: dict[str, str] = {
-    "summary": r"(?:summary|objective|profile|about\s*me|about)",
-    "skills": r"(?:technical\s+skills|core\s+competencies|technologies|skills)",
-    "experience": r"(?:professional\s+experience|work\s+experience|work\s+history|employment|experience)",
-    "education": r"(?:academic\s+background|qualifications|education)",
-    "projects": r"(?:personal\s+projects|key\s+projects|portfolio|projects)",
+    # Broader summary/profile variants seen in real resumes
+    "summary": (
+        r"(?:professional\s+profile|executive\s+profile|career\s+profile|"
+        r"career\s+summary|personal\s+statement|candidate\s+profile|"
+        r"summary|objective|profile|about\s*me|about)"
+    ),
+    # Broader skills variants
+    "skills": (
+        r"(?:technical\s+skills|core\s+competencies|technologies|"
+        r"proficient\s+skills|key\s+skills|areas\s+of\s+expertise|"
+        r"technical\s+expertise|skill\s+set|competencies|skills)"
+    ),
+    # Broader experience variants
+    "experience": (
+        r"(?:professional\s+experience|work\s+experience|work\s+history|"
+        r"employment\s+history|career\s+history|professional\s+history|"
+        r"employment|experience)"
+    ),
+    # Broader education variants
+    "education": (
+        r"(?:educational\s+history|educational\s+background|academic\s+history|"
+        r"academic\s+background|qualifications|education)"
+    ),
+    # Broader projects/activities variants
+    "projects": (
+        r"(?:personal\s+projects|key\s+projects|notable\s+projects|"
+        r"other\s+activities|activities|portfolio|projects)"
+    ),
 }
 
 # Order matters when we scan headings: more specific patterns first so that
@@ -180,9 +203,32 @@ def extract_text(file: Union[str, "io.BytesIO"]) -> dict:
             # BytesIO / UploadedFile from Streamlit
             filename = getattr(file, "name", "unknown.pdf")
             result["filename"] = filename
-            # Read bytes and open from memory
+            # Read bytes from whatever buffer type was provided
             file_bytes = file.read() if hasattr(file, "read") else bytes(file.getvalue())
-            doc = fitz.open(stream=file_bytes, filetype="pdf")
+
+            # ---- Plain-text fallback: .txt files skip PyMuPDF entirely ----
+            if filename.lower().endswith(".txt"):
+                raw = file_bytes.decode("utf-8", errors="replace")
+                result["raw_text"] = raw
+                result["cleaned_text"] = clean_text(raw)
+                result["sections"] = _detect_sections(raw)
+                return result
+
+            # ---- Try PyMuPDF; fall back to UTF-8 if the bytes are not a PDF ----
+            try:
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+            except Exception:
+                # Not a valid PDF stream — attempt to read as plain text
+                raw = file_bytes.decode("utf-8", errors="replace").strip()
+                if raw:
+                    result["raw_text"] = raw
+                    result["cleaned_text"] = clean_text(raw)
+                    result["sections"] = _detect_sections(raw)
+                else:
+                    result["error"] = (
+                        "File is not a valid PDF and contains no readable text."
+                    )
+                return result
 
         # ---- Extract text from every page --------------------------------
         page_texts: list[str] = []

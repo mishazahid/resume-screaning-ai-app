@@ -1,0 +1,46 @@
+Alice Chen
+alice.chen@email.com | linkedin.com/in/alicechen | San Francisco, CA
+
+Summary
+-------
+Results-driven Data Scientist with 4 years of professional experience turning
+complex datasets into actionable business insights. Skilled at building end-to-end
+machine learning pipelines and communicating findings clearly to both technical and
+non-technical stakeholders. Passionate about statistical modelling and clean,
+reproducible analysis.
+
+Skills
+------
+Programming & Analysis: Python, SQL, R (basic), statistics, data visualization
+Machine Learning: machine learning, scikit-learn, feature engineering, a/b testing
+Data Tools: pandas, numpy, matplotlib, seaborn, Tableau, Excel
+Databases: PostgreSQL, MySQL, SQLite
+Collaboration: Git, GitHub, agile, communication, teamwork
+
+Experience
+----------
+Data Scientist — Lyra Analytics, San Francisco, CA  (2022 - present)
+• Built and deployed classification models using scikit-learn to predict customer
+  churn, improving retention by 18 % through targeted interventions.
+• Developed an automated A/B testing framework in Python and pandas, cutting
+  experiment analysis time from 3 days to 4 hours.
+• Created Tableau dashboards consumed by 40+ stakeholders across marketing
+  and product teams to monitor KPIs weekly.
+• Partnered with engineering to productionise two ML models via a REST API.
+
+Junior Data Analyst — Greenfield Retail Corp, Oakland, CA  (2020 - 2022)
+• Wrote complex SQL queries to extract and transform data from PostgreSQL
+  and MySQL databases for weekly business-performance reports.
+• Performed statistical analysis (hypothesis testing, regression) in Python
+  with pandas and numpy to surface pricing opportunities worth $2 M annually.
+• Automated repetitive Excel reporting tasks using Python scripts, saving
+  5 hours of manual work per week.
+
+Education
+---------
+Master of Science in Computer Science
+University of California, Berkeley — 2020
+Thesis: Interpretable Machine Learning Methods for Tabular Healthcare Data
+
+Bachelor of Science in Mathematics
+University of California, Santa Barbara — 2018

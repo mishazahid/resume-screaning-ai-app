@@ -1,0 +1,54 @@
+Carol Johnson
+carol.johnson@email.com | linkedin.com/in/caroljohnson | Seattle, WA
+
+Summary
+-------
+Senior Machine Learning Engineer with 7+ years of experience designing and
+deploying large-scale AI systems in production environments. Deep expertise in
+deep learning, NLP, and MLOps, with a strong publication record and hands-on
+experience shipping transformer-based models to millions of users. Equally
+comfortable prototyping in a Jupyter notebook and building fault-tolerant
+distributed pipelines on AWS.
+
+Skills
+------
+Programming: Python, SQL, bash, Scala (reading)
+Machine Learning & AI: machine learning, deep learning, NLP, transformers, LLM,
+  scikit-learn, statistics, feature engineering, model deployment, time series
+Frameworks: PyTorch, TensorFlow, Keras, Hugging Face, xgboost
+Data & Compute: pandas, numpy, Spark, Kafka, Airflow, dbt
+Cloud & Infrastructure: AWS (SageMaker, S3, EC2, Lambda), Docker, Kubernetes,
+  Terraform, CI/CD, GitHub Actions, Linux
+Databases: PostgreSQL, MongoDB, Redis, DynamoDB
+
+Experience
+----------
+Senior ML Engineer — Cascade AI, Seattle, WA  (2021 - present)
+• Architected and shipped a production NLP pipeline using Hugging Face
+  transformers and PyTorch processing 50 M documents per day on AWS ECS
+  backed by Kubernetes autoscaling.
+• Led a team of 4 engineers to reduce model inference latency by 60 % using
+  model quantisation, TensorRT, and Redis caching.
+• Built Spark-based feature engineering pipelines via Airflow DAGs that reduced
+  training data preparation time from 6 hours to 45 minutes.
+
+ML Engineer — DataStream Labs, San Francisco, CA  (2018 - 2021)
+• Developed deep learning models with TensorFlow and scikit-learn for fraud
+  detection, achieving a 97.3 % AUC on a 3-month holdout set.
+• Containerised models with Docker and managed blue-green deployments on AWS
+  using Terraform and CI/CD pipelines, achieving 99.9 % uptime.
+• Applied statistical A/B testing and time series analysis to validate model
+  improvements before full rollout.
+
+Data Scientist — NovaCorp, Austin, TX  (2017 - 2018)
+• Built machine learning classification models in Python with scikit-learn and
+  pandas for customer segmentation across a 10 M-record SQL database.
+
+Education
+---------
+Doctor of Philosophy in Computer Science — Deep Learning & NLP
+Carnegie Mellon University — 2017
+Dissertation: Efficient Attention Mechanisms for Long-Document Understanding
+
+Bachelor of Science in Computer Science
+University of Michigan — 2013
